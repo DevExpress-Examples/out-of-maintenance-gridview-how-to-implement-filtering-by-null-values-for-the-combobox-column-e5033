@@ -1,0 +1,61 @@
+﻿@using DevExpress.Data.Filtering;
+
+@{
+    DevExpress.Data.Filtering.EnumProcessingHelper.RegisterEnum(typeof(MVCxGridViewDataBinding.Models.MyModel.ModelStateEnum));
+}
+
+@Html.DevExpress().GridView(settings=>{
+    settings.Name = "grid";
+    settings.KeyFieldName = "ModelID";
+    settings.Settings.ShowFilterRow = true;
+    settings.CommandColumn.ClearFilterButton.Visible = true;
+    settings.CommandColumn.Visible = true;
+    settings.CommandColumn.EditButton.Visible = true;
+    settings.CallbackRouteValues = new { Controller = "Home", Action = "GridPartial" };
+    settings.Columns.Add("ModelID");
+    settings.Columns.Add("ModelName");
+    settings.Columns.Add(col => {
+        col.FieldName = "ModelState";
+        col.Settings.AutoFilterCondition = AutoFilterCondition.Equals;
+        col.ColumnType = MVCxGridViewColumnType.ComboBox;
+        ComboBoxProperties cp = col.PropertiesEdit as ComboBoxProperties;
+        cp.ValueType = typeof(MVCxGridViewDataBinding.Models.MyModel.ModelStateEnum?);
+        col.Settings.FilterMode = ColumnFilterMode.Value;
+        cp.DataSource = Enum.GetValues(typeof(MVCxGridViewDataBinding.Models.MyModel.ModelStateEnum));
+        cp.NullDisplayText = "[null]";
+        cp.ClientSideEvents.Init = "function(s,e) { s.InsertItem(0,'[null]','[null]') }";       
+    });
+    var flag = false;
+    settings.AutoFilterCellEditorInitialize = (s, e) =>
+    {
+
+        MVCxGridView grid = s as MVCxGridView;
+        if (grid.FilterExpression.Contains("ModelState") && Session["text"] != null && e.Column.FieldName=="ModelState")
+        {
+            ((ASPxComboBox)e.Editor).Text = Session["text"] as string;
+        }
+ 
+    };
+    settings.ProcessColumnAutoFilter = (s, e) => {
+        if (e.Kind == GridViewAutoFilterEventKind.CreateCriteria && e.Column.FieldName == "ModelState")
+        {
+            string str = e.Value as string;
+            if (str == "[null]")
+            {
+                flag = true;
+                e.Criteria = new DevExpress.Data.Filtering.NullOperator("ModelState");
+                Session["text"] = e.Value;
+            }
+            else
+                Session["text"] = null;
+        }
+        if (e.Kind == GridViewAutoFilterEventKind.ExtractDisplayText && e.Column.FieldName == "ModelState" && flag)
+        {
+            flag = false;
+            e.Value = "[null]";
+        }    
+    };
+}).BindToEF(String.Empty,String.Empty,(s,e)=>{
+    e.QueryableSource = MVCxGridViewDataBinding.Models.MyModel.GetModelList().AsQueryable();
+    e.KeyExpression = "ModelID";
+}).GetHtml()
